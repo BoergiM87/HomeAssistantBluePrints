@@ -1,6 +1,6 @@
 blueprint:
   name: Z2M 4-Button Remote with Full Control
-  description: IKEA Remote Control with 4 Buttons using Zigbee2MQTT, including on/off and dimming with configurable transitions.
+  description: IKEA Remote Control with 4 Buttons using Zigbee2MQTT, including dimming and on/off for two separate lights.
   domain: automation
   input:
     remote_topic:
@@ -17,7 +17,7 @@ blueprint:
           multiple: false
     light_left_right:
       name: Light for Left/Right
-      description: Light to control for left and right button actions.
+      description: Light to control for brightness left and right actions.
       selector:
         entity:
           domain: light
@@ -113,13 +113,19 @@ actions:
       - condition: template
         value_template: '{{ command == "arrow_left_click" }}'
     sequence:
-      - service: light.toggle
+      - service: light.turn_on
+        data:
+          brightness_step_pct: !input helper_step_down
+          transition: !input helper_transition_dim
         target:
           entity_id: !input light_left_right
   - conditions:
       - condition: template
         value_template: '{{ command == "arrow_right_click" }}'
     sequence:
-      - service: light.toggle
+      - service: light.turn_on
+        data:
+          brightness_step_pct: !input helper_step_up
+          transition: !input helper_transition_dim
         target:
           entity_id: !input light_left_right
