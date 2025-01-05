@@ -154,7 +154,7 @@ actions:
             - choose:
                 - conditions:
                     - condition: template
-                      value_template: '{{ is_state("!input dimming_direction_left", "off") }}'
+                      value_template: '{{ is_state("{{ !input dimming_direction_left }}", "off") }}'
                   sequence:
                     - service: light.turn_on
                       data:
@@ -164,7 +164,7 @@ actions:
                         entity_id: !input light_left
                 - conditions:
                     - condition: template
-                      value_template: '{{ is_state("!input dimming_direction_left", "on") }}'
+                      value_template: '{{ is_state("{{ !input dimming_direction_left }}", "on") }}'
                   sequence:
                     - service: light.turn_on
                       data:
@@ -195,7 +195,7 @@ actions:
             - choose:
                 - conditions:
                     - condition: template
-                      value_template: '{{ is_state("!input dimming_direction_right", "off") }}'
+                      value_template: '{{ is_state("{{ !input dimming_direction_right }}", "off") }}'
                   sequence:
                     - service: light.turn_on
                       data:
@@ -205,7 +205,7 @@ actions:
                         entity_id: !input light_right
                 - conditions:
                     - condition: template
-                      value_template: '{{ is_state("!input dimming_direction_right", "on") }}'
+                      value_template: '{{ is_state("{{ !input dimming_direction_right }}", "on") }}'
                   sequence:
                     - service: light.turn_on
                       data:
