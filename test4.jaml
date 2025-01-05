@@ -1,0 +1,191 @@
+blueprint:
+  name: Z2M IKEA STYRBAR Remote with Dimming Direction State
+  description: IKEA Remote Control with Zigbee2MQTT for controlling individual lamps and dimming direction with stored state.
+  domain: automation
+  input:
+    remote_topic:
+      name: Zigbee2MQTT Remote Topic
+      description: Enter the MQTT topic of your IKEA remote (e.g., "zigbee2mqtt/MB - SW - Schreibtisch").
+      selector:
+        text: {}
+    lights_up_down:
+      name: Lights for Up/Down
+      description: Lights to control for brightness up, down, on, and off.
+      selector:
+        entity:
+          domain: light
+          multiple: true
+    light_left:
+      name: Light for Left Button
+      description: Light to control with the Left button.
+      selector:
+        entity:
+          domain: light
+          multiple: false
+    light_right:
+      name: Light for Right Button
+      description: Light to control with the Right button.
+      selector:
+        entity:
+          domain: light
+          multiple: false
+    dimming_state_left:
+      name: Dimming State for Left Button
+      description: Input Text helper to store the dimming state for the Left button.
+      selector:
+        entity:
+          domain: input_text
+    dimming_state_right:
+      name: Dimming State for Right Button
+      description: Input Text helper to store the dimming state for the Right button.
+      selector:
+        entity:
+          domain: input_text
+    helper_step_up:
+      name: Brightness step up
+      default: 10
+      selector:
+        number:
+          min: 5
+          max: 50
+          mode: slider
+          step: 5
+    helper_step_down:
+      name: Brightness step down
+      default: -10
+      selector:
+        number:
+          min: -50
+          max: -5
+          mode: slider
+          step: 5
+    helper_transition_dim:
+      name: Dimming transition time (seconds)
+      default: 0.5
+      selector:
+        number:
+          min: 0.0
+          max: 10.0
+          mode: slider
+          step: 0.5
+    helper_pause:
+      name: Pause between dimming steps (ms)
+      default: 500
+      selector:
+        number:
+          min: 100
+          max: 2000
+          mode: slider
+          step: 100
+mode: restart
+max_exceeded: silent
+triggers:
+- platform: mqtt
+  topic: !input remote_topic
+variables:
+  command: '{{ trigger.payload_json.action }}'
+actions:
+- choose:
+  # Toggle for Left Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_click" }}'
+    sequence:
+      - service: light.toggle
+        target:
+          entity_id: !input light_left
+
+  # Dim/Brighten for Left Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_hold" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: '{{ states("!input dimming_state_left") == "dim" }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_down
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_left
+                - conditions:
+                    - condition: template
+                      value_template: '{{ states("!input dimming_state_left") == "brighten" }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_up
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_left
+            - delay:
+                milliseconds: !input helper_pause
+
+  # Change Dimming State for Left Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_release" }}'
+    sequence:
+      - service: input_text.set_value
+        data:
+          entity_id: !input dimming_state_left
+          value: >
+            {{ "brighten" if states("!input dimming_state_left") == "dim" else "dim" }}
+
+  # Toggle for Right Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_click" }}'
+    sequence:
+      - service: light.toggle
+        target:
+          entity_id: !input light_right
+
+  # Dim/Brighten for Right Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_hold" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: '{{ states("!input dimming_state_right") == "dim" }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_down
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_right
+                - conditions:
+                    - condition: template
+                      value_template: '{{ states("!input dimming_state_right") == "brighten" }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_up
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_right
+            - delay:
+                milliseconds: !input helper_pause
+
+  # Change Dimming State for Right Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_release" }}'
+    sequence:
+      - service: input_text.set_value
+        data:
+          entity_id: !input dimming_state_right
+          value: >
+            {{ "brighten" if states("!input dimming_state_right") == "dim" else "dim" }}
