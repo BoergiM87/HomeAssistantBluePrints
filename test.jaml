@@ -1,5 +1,5 @@
 blueprint:
-  name: Z2M IKEA STYRBAR Remote with Fixed Dimming
+  name: Z2M IKEA STYRBAR Remote with Fixed Dimming Direction
   description: IKEA Remote Control with Zigbee2MQTT for controlling individual lamps with Left/Right buttons and two light groups with Up/Down buttons.
   domain: automation
   input:
@@ -150,9 +150,6 @@ actions:
                         transition: !input helper_transition_dim
                       target:
                         entity_id: !input light_left
-                    - service: input_boolean.turn_on
-                      target:
-                        entity_id: input_boolean.dimming_direction_left
                 - conditions:
                     - condition: template
                       value_template: '{{ is_state("input_boolean.dimming_direction_left", "on") }}'
@@ -163,9 +160,6 @@ actions:
                         transition: !input helper_transition_dim
                       target:
                         entity_id: !input light_left
-                    - service: input_boolean.turn_off
-                      target:
-                        entity_id: input_boolean.dimming_direction_left
             - delay:
                 milliseconds: !input helper_pause
 
@@ -197,9 +191,6 @@ actions:
                         transition: !input helper_transition_dim
                       target:
                         entity_id: !input light_right
-                    - service: input_boolean.turn_on
-                      target:
-                        entity_id: input_boolean.dimming_direction_right
                 - conditions:
                     - condition: template
                       value_template: '{{ is_state("input_boolean.dimming_direction_right", "on") }}'
@@ -210,8 +201,23 @@ actions:
                         transition: !input helper_transition_dim
                       target:
                         entity_id: !input light_right
-                    - service: input_boolean.turn_off
-                      target:
-                        entity_id: input_boolean.dimming_direction_right
             - delay:
                 milliseconds: !input helper_pause
+
+  # Switch Dimming Direction for Left Button on Release
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_release" }}'
+    sequence:
+      - service: input_boolean.toggle
+        target:
+          entity_id: input_boolean.dimming_direction_left
+
+  # Switch Dimming Direction for Right Button on Release
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_release" }}'
+    sequence:
+      - service: input_boolean.toggle
+        target:
+          entity_id: input_boolean.dimming_direction_right
