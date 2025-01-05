@@ -2,26 +2,22 @@ blueprint:
   name: Z2M IKEA On Off and dimming Lights
   description: Blueprint for IKEA Remote Controls (e.g., e1743, e1744) using Zigbee2MQTT
   domain: automation
-  source_url: https://github.com/BoergiM87/HomeAssistantBluePrints/blob/main/test.jaml
   input:
-    remote_topic:
-      name: Zigbee2MQTT Remote Topic
-      description: The MQTT topic of your IKEA remote (e.g., "zigbee2mqtt/kitchen_remote")
+    remote_device:
+      name: Zigbee2MQTT Remote Device
+      description: Select the IKEA remote device
       selector:
-        text: {}
+        device:
+          integration: mqtt
     lights:
       name: Lights
       description: Light(s) to control when using default light actions
-      default:
-        entity_id: none
       selector:
         entity:
-          domain:
-          - light
+          domain: light
           multiple: false
     helper_transition_switch:
       name: Helper - Transition time in seconds for switching on / off
-      description: Transition time in seconds for switching on / off (0.0-10.0)
       default: 1
       selector:
         number:
@@ -31,7 +27,6 @@ blueprint:
           step: 0.5
     helper_step_up:
       name: Helper - brightness up step
-      description: Step size for changing brightness up (0-20)
       default: 5
       selector:
         number:
@@ -41,7 +36,6 @@ blueprint:
           step: 1.0
     helper_step_down:
       name: Helper - brightness down step
-      description: Step size for changing brightness down (0-20)
       default: -5
       selector:
         number:
@@ -51,8 +45,6 @@ blueprint:
           step: 1.0
     helper_transition_dim:
       name: Helper - Transition time for dimming up / down
-      description: Transition time in seconds for dimming up / down. 0 makes visible
-        steps. Greater than 0.1 makes it smoother. (0.0-10.0)
       default: 0.5
       selector:
         number:
@@ -62,15 +54,13 @@ blueprint:
           step: 0.5
     helper_pause:
       name: Helper - pause between each dimming step
-      description: How long should be delayed between each step of dimming in milliseconds.
-        0 makes no delay. (10-2000)
       default: 500
       selector:
         number:
-          min: 10.0
-          max: 2000.0
+          min: 10
+          max: 2000
           mode: box
-          step: 10.0
+          step: 10
 mode: restart
 max_exceeded: silent
 variables:
@@ -79,9 +69,11 @@ variables:
   helper_step_down: !input helper_step_down
   helper_transition_dim: !input helper_transition_dim
   helper_pause: !input helper_pause
+  remote_topic: >
+    {{ device_attr(!input remote_device, 'via_device') }}
 triggers:
 - platform: mqtt
-  topic: !input remote_topic
+  topic: '{{ remote_topic }}'
 variables:
   command: '{{ trigger.payload_json.action }}'
 conditions:
@@ -106,14 +98,6 @@ action:
       target:
         entity_id: !input lights
   - conditions:
-    - '{{ command == ''toggle'' }}'
-    sequence:
-    - service: light.toggle
-      data:
-        transition: !input helper_transition_switch
-      target:
-        entity_id: !input lights
-  - conditions:
     - '{{ command == ''brightness_move_up'' }}'
     sequence:
     - repeat:
@@ -126,9 +110,6 @@ action:
           target:
             entity_id: !input lights
         - delay:
-            hours: 0
-            minutes: 0
-            seconds: 0
             milliseconds: !input helper_pause
   - conditions:
     - '{{ command == ''brightness_move_down'' }}'
@@ -143,7 +124,4 @@ action:
           target:
             entity_id: !input lights
         - delay:
-            hours: 0
-            minutes: 0
-            seconds: 0
             milliseconds: !input helper_pause
