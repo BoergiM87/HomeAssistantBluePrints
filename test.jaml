@@ -72,8 +72,6 @@ triggers:
   topic: !input remote_topic
 variables:
   command: '{{ trigger.payload_json.action }}'
-  dimming_direction_left: '{{ states("input_boolean.dimming_direction_left") | default("off") }}'
-  dimming_direction_right: '{{ states("input_boolean.dimming_direction_right") | default("off") }}'
 actions:
 - choose:
   # On/Off for Lights Up/Down
@@ -137,24 +135,10 @@ actions:
         value_template: '{{ command == "arrow_left_hold" }}'
     sequence:
       - choose:
-          # Dim the light if last action was brightening
+          # Brighten the light if the last action was dimming
           - conditions:
               - condition: template
-                value_template: '{{ dimming_direction_left == "brighten" }}'
-            sequence:
-              - service: light.turn_on
-                data:
-                  brightness_step_pct: !input helper_step_down
-                  transition: !input helper_transition_dim
-                target:
-                  entity_id: !input light_left
-              - service: input_boolean.turn_off
-                target:
-                  entity_id: input_boolean.dimming_direction_left
-          # Brighten the light if last action was dimming
-          - conditions:
-              - condition: template
-                value_template: '{{ dimming_direction_left == "dim" or dimming_direction_left == "off" }}'
+                value_template: '{{ is_state("input_boolean.dimming_direction_left", "off") }}'
             sequence:
               - service: light.turn_on
                 data:
@@ -163,6 +147,20 @@ actions:
                 target:
                   entity_id: !input light_left
               - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.dimming_direction_left
+          # Dim the light if the last action was brightening
+          - conditions:
+              - condition: template
+                value_template: '{{ is_state("input_boolean.dimming_direction_left", "on") }}'
+            sequence:
+              - service: light.turn_on
+                data:
+                  brightness_step_pct: !input helper_step_down
+                  transition: !input helper_transition_dim
+                target:
+                  entity_id: !input light_left
+              - service: input_boolean.turn_off
                 target:
                   entity_id: input_boolean.dimming_direction_left
 
@@ -179,24 +177,10 @@ actions:
         value_template: '{{ command == "arrow_right_hold" }}'
     sequence:
       - choose:
-          # Dim the light if last action was brightening
+          # Brighten the light if the last action was dimming
           - conditions:
               - condition: template
-                value_template: '{{ dimming_direction_right == "brighten" }}'
-            sequence:
-              - service: light.turn_on
-                data:
-                  brightness_step_pct: !input helper_step_down
-                  transition: !input helper_transition_dim
-                target:
-                  entity_id: !input light_right
-              - service: input_boolean.turn_off
-                target:
-                  entity_id: input_boolean.dimming_direction_right
-          # Brighten the light if last action was dimming
-          - conditions:
-              - condition: template
-                value_template: '{{ dimming_direction_right == "dim" or dimming_direction_right == "off" }}'
+                value_template: '{{ is_state("input_boolean.dimming_direction_right", "off") }}'
             sequence:
               - service: light.turn_on
                 data:
@@ -205,5 +189,19 @@ actions:
                 target:
                   entity_id: !input light_right
               - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.dimming_direction_right
+          # Dim the light if the last action was brightening
+          - conditions:
+              - condition: template
+                value_template: '{{ is_state("input_boolean.dimming_direction_right", "on") }}'
+            sequence:
+              - service: light.turn_on
+                data:
+                  brightness_step_pct: !input helper_step_down
+                  transition: !input helper_transition_dim
+                target:
+                  entity_id: !input light_right
+              - service: input_boolean.turn_off
                 target:
                   entity_id: input_boolean.dimming_direction_right
