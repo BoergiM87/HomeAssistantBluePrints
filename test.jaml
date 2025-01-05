@@ -1,19 +1,14 @@
 blueprint:
   name: Z2M IKEA On Off and dimming Lights
-  description: Blueprint for Ikea Remote Controls e1743 e1744 (On/Off and dim) for controlling lights
+  description: Blueprint for IKEA Remote Controls (e.g., e1743, e1744) using Zigbee2MQTT
   domain: automation
   source_url: https://github.com/BoergiM87/HomeAssistantBluePrints/blob/main/test.jaml
   input:
-    remote:
-      name: Remote
-      description: IKEA remote to use (e.g sensor.kitchen_remote_action)
-      default:
-        entity_id: none
+    remote_topic:
+      name: Zigbee2MQTT Remote Topic
+      description: The MQTT topic of your IKEA remote (e.g., "zigbee2mqtt/kitchen_remote")
       selector:
-        entity:
-          domain:
-          - event
-          multiple: false
+        text: {}
     lights:
       name: Lights
       description: Light(s) to control when using default light actions
@@ -85,10 +80,10 @@ variables:
   helper_transition_dim: !input helper_transition_dim
   helper_pause: !input helper_pause
 triggers:
-- trigger: state
-  entity_id: !input remote
+- platform: mqtt
+  topic: !input remote_topic
 variables:
-  command: '{{ trigger.to_state.attributes.event_type }}'
+  command: '{{ trigger.payload_json.action }}'
 conditions:
 - condition: template
   value_template: '{{ command != ''''}}'
@@ -111,7 +106,7 @@ action:
       target:
         entity_id: !input lights
   - conditions:
-    - '{{ command == "toggle" }}'
+    - '{{ command == ''toggle'' }}'
     sequence:
     - service: light.toggle
       data:
