@@ -1,6 +1,6 @@
 blueprint:
-  name: Z2M IKEA STYRBAR Remote with Groups and Toggle Dimming
-  description: IKEA Remote Control with Zigbee2MQTT for controlling two light groups with advanced dimming.
+  name: Z2M IKEA STYRBAR Remote with Individual Left/Right Lamps
+  description: IKEA Remote Control with Zigbee2MQTT for controlling individual lamps with Left/Right buttons and two light groups with Up/Down buttons.
   domain: automation
   input:
     remote_topic:
@@ -15,9 +15,16 @@ blueprint:
         entity:
           domain: light
           multiple: true
-    light_left_right:
-      name: Light for Left/Right
-      description: Light to control for toggling and dimming.
+    light_left:
+      name: Light for Left Button
+      description: Light to control with the Left button.
+      selector:
+        entity:
+          domain: light
+          multiple: false
+    light_right:
+      name: Light for Right Button
+      description: Light to control with the Right button.
       selector:
         entity:
           domain: light
@@ -62,7 +69,8 @@ mode: restart
 max_exceeded: silent
 variables:
   command: '{{ trigger.payload_json.action }}'
-  dimming_direction: '{{ states("input_boolean.dimming_direction") | default("off") }}'
+  dimming_direction_left: '{{ states("input_boolean.dimming_direction_left") | default("off") }}'
+  dimming_direction_right: '{{ states("input_boolean.dimming_direction_right") | default("off") }}'
 actions:
 - choose:
   # On/Off for Lights Up/Down
@@ -113,44 +121,86 @@ actions:
             - delay:
                 milliseconds: !input helper_pause
 
-  # Toggle and Advanced Dimming for Light Left/Right
+  # Toggle and Advanced Dimming for Left Button
   - conditions:
       - condition: template
-        value_template: '{{ command == "arrow_left_click" or command == "arrow_right_click" }}'
+        value_template: '{{ command == "arrow_left_click" }}'
     sequence:
       - service: light.toggle
         target:
-          entity_id: !input light_left_right
+          entity_id: !input light_left
   - conditions:
       - condition: template
-        value_template: '{{ command == "arrow_left_hold" or command == "arrow_right_hold" }}'
+        value_template: '{{ command == "arrow_left_hold" }}'
     sequence:
       - choose:
           # Dim the light if last action was brightening
           - conditions:
               - condition: template
-                value_template: '{{ dimming_direction == "brighten" }}'
+                value_template: '{{ dimming_direction_left == "brighten" }}'
             sequence:
               - service: light.turn_on
                 data:
                   brightness_step_pct: !input helper_step_down
                   transition: !input helper_transition_dim
                 target:
-                  entity_id: !input light_left_right
+                  entity_id: !input light_left
               - service: input_boolean.turn_off
                 target:
-                  entity_id: input_boolean.dimming_direction
+                  entity_id: input_boolean.dimming_direction_left
           # Brighten the light if last action was dimming
           - conditions:
               - condition: template
-                value_template: '{{ dimming_direction == "dim" or dimming_direction == "off" }}'
+                value_template: '{{ dimming_direction_left == "dim" or dimming_direction_left == "off" }}'
             sequence:
               - service: light.turn_on
                 data:
                   brightness_step_pct: !input helper_step_up
                   transition: !input helper_transition_dim
                 target:
-                  entity_id: !input light_left_right
+                  entity_id: !input light_left
               - service: input_boolean.turn_on
                 target:
-                  entity_id: input_boolean.dimming_direction
+                  entity_id: input_boolean.dimming_direction_left
+
+  # Toggle and Advanced Dimming for Right Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_click" }}'
+    sequence:
+      - service: light.toggle
+        target:
+          entity_id: !input light_right
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_hold" }}'
+    sequence:
+      - choose:
+          # Dim the light if last action was brightening
+          - conditions:
+              - condition: template
+                value_template: '{{ dimming_direction_right == "brighten" }}'
+            sequence:
+              - service: light.turn_on
+                data:
+                  brightness_step_pct: !input helper_step_down
+                  transition: !input helper_transition_dim
+                target:
+                  entity_id: !input light_right
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.dimming_direction_right
+          # Brighten the light if last action was dimming
+          - conditions:
+              - condition: template
+                value_template: '{{ dimming_direction_right == "dim" or dimming_direction_right == "off" }}'
+            sequence:
+              - service: light.turn_on
+                data:
+                  brightness_step_pct: !input helper_step_up
+                  transition: !input helper_transition_dim
+                target:
+                  entity_id: !input light_right
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.dimming_direction_right
