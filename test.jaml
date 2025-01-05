@@ -1,5 +1,5 @@
 blueprint:
-  name: Z2M IKEA STYRBAR Remote with Fixed Dimming Direction
+  name: Z2M IKEA STYRBAR Remote with Dynamic Dimming Direction
   description: IKEA Remote Control with Zigbee2MQTT for controlling individual lamps with Left/Right buttons and two light groups with Up/Down buttons.
   domain: automation
   input:
@@ -131,7 +131,7 @@ actions:
         target:
           entity_id: !input light_left
 
-  # Dim/Brighten for Left Button
+  # Dim/Brighten for Left Button based on Brightness
   - conditions:
       - condition: template
         value_template: '{{ command == "arrow_left_hold" }}'
@@ -142,21 +142,21 @@ actions:
             - choose:
                 - conditions:
                     - condition: template
-                      value_template: '{{ is_state("input_boolean.dimming_direction_left", "off") }}'
+                      value_template: '{{ state_attr("!input light_left", "brightness") | int > 128 }}'
                   sequence:
                     - service: light.turn_on
                       data:
-                        brightness_step: !input helper_step_up
+                        brightness_step: !input helper_step_down
                         transition: !input helper_transition_dim
                       target:
                         entity_id: !input light_left
                 - conditions:
                     - condition: template
-                      value_template: '{{ is_state("input_boolean.dimming_direction_left", "on") }}'
+                      value_template: '{{ state_attr("!input light_left", "brightness") | int <= 128 }}'
                   sequence:
                     - service: light.turn_on
                       data:
-                        brightness_step: !input helper_step_down
+                        brightness_step: !input helper_step_up
                         transition: !input helper_transition_dim
                       target:
                         entity_id: !input light_left
@@ -172,7 +172,7 @@ actions:
         target:
           entity_id: !input light_right
 
-  # Dim/Brighten for Right Button
+  # Dim/Brighten for Right Button based on Brightness
   - conditions:
       - condition: template
         value_template: '{{ command == "arrow_right_hold" }}'
@@ -183,17 +183,7 @@ actions:
             - choose:
                 - conditions:
                     - condition: template
-                      value_template: '{{ is_state("input_boolean.dimming_direction_right", "off") }}'
-                  sequence:
-                    - service: light.turn_on
-                      data:
-                        brightness_step: !input helper_step_up
-                        transition: !input helper_transition_dim
-                      target:
-                        entity_id: !input light_right
-                - conditions:
-                    - condition: template
-                      value_template: '{{ is_state("input_boolean.dimming_direction_right", "on") }}'
+                      value_template: '{{ state_attr("!input light_right", "brightness") | int > 128 }}'
                   sequence:
                     - service: light.turn_on
                       data:
@@ -201,23 +191,15 @@ actions:
                         transition: !input helper_transition_dim
                       target:
                         entity_id: !input light_right
+                - conditions:
+                    - condition: template
+                      value_template: '{{ state_attr("!input light_right", "brightness") | int <= 128 }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_up
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_right
             - delay:
                 milliseconds: !input helper_pause
-
-  # Switch Dimming Direction for Left Button on Release
-  - conditions:
-      - condition: template
-        value_template: '{{ command == "arrow_left_release" }}'
-    sequence:
-      - service: input_boolean.toggle
-        target:
-          entity_id: input_boolean.dimming_direction_left
-
-  # Switch Dimming Direction for Right Button on Release
-  - conditions:
-      - condition: template
-        value_template: '{{ command == "arrow_right_release" }}'
-    sequence:
-      - service: input_boolean.toggle
-        target:
-          entity_id: input_boolean.dimming_direction_right
