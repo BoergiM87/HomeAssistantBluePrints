@@ -67,6 +67,7 @@ variables:
   command: '{{ trigger.payload_json.action }}'
 actions:
 - choose:
+  # On/Off for Light Up/Down
   - conditions:
       - condition: template
         value_template: '{{ command == "on" }}'
@@ -81,6 +82,8 @@ actions:
       - service: light.turn_off
         target:
           entity_id: !input light_up_down
+
+  # Brightness Move Up/Down for Light Up/Down
   - conditions:
       - condition: template
         value_template: '{{ command == "brightness_move_up" }}'
@@ -111,23 +114,49 @@ actions:
                 entity_id: !input light_up_down
             - delay:
                 milliseconds: !input helper_pause
+
+  # Left/Right Control for Light Left/Right
   - conditions:
       - condition: template
         value_template: '{{ command == "arrow_left_click" }}'
     sequence:
       - service: light.turn_on
-        data:
-          brightness_step_pct: !input helper_step_down
-          transition: !input helper_transition_dim
         target:
           entity_id: !input light_left_right
   - conditions:
       - condition: template
         value_template: '{{ command == "arrow_right_click" }}'
     sequence:
-      - service: light.turn_on
-        data:
-          brightness_step_pct: !input helper_step_up
-          transition: !input helper_transition_dim
+      - service: light.turn_off
         target:
           entity_id: !input light_left_right
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_hold" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - service: light.turn_on
+              data:
+                brightness_step_pct: !input helper_step_up
+                transition: !input helper_transition_dim
+              target:
+                entity_id: !input light_left_right
+            - delay:
+                milliseconds: !input helper_pause
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_hold" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - service: light.turn_on
+              data:
+                brightness_step_pct: !input helper_step_down
+                transition: !input helper_transition_dim
+              target:
+                entity_id: !input light_left_right
+            - delay:
+                milliseconds: !input helper_pause
