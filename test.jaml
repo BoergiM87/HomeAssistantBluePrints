@@ -67,6 +67,9 @@ blueprint:
           step: 10
 mode: restart
 max_exceeded: silent
+triggers:
+- platform: mqtt
+  topic: !input remote_topic
 variables:
   command: '{{ trigger.payload_json.action }}'
   dimming_direction_left: '{{ states("input_boolean.dimming_direction_left") | default("off") }}'
