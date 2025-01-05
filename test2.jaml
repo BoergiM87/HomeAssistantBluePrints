@@ -1,0 +1,235 @@
+blueprint:
+  name: v5 Z2M IKEA STYRBAR Remote with Configurable Dimming Direction
+  description: IKEA Remote Control with Zigbee2MQTT for controlling individual lamps with Left/Right buttons and two light groups with Up/Down buttons.
+  domain: automation
+  input:
+    remote_topic:
+      name: Zigbee2MQTT Remote Topic
+      description: Enter the MQTT topic of your IKEA remote (e.g., "zigbee2mqtt/MB - SW - Schreibtisch").
+      selector:
+        text: {}
+    lights_up_down:
+      name: Lights for Up/Down
+      description: Lights to control for brightness up, down, on, and off.
+      selector:
+        entity:
+          domain: light
+          multiple: true
+    light_left:
+      name: Light for Left Button
+      description: Light to control with the Left button.
+      selector:
+        entity:
+          domain: light
+          multiple: false
+    light_right:
+      name: Light for Right Button
+      description: Light to control with the Right button.
+      selector:
+        entity:
+          domain: light
+          multiple: false
+    dimming_direction_left:
+      name: Helper for Dimming Direction (Left Button)
+      description: Input Boolean entity to track dimming direction for the Left button.
+      selector:
+        entity:
+          domain: input_boolean
+    dimming_direction_right:
+      name: Helper for Dimming Direction (Right Button)
+      description: Input Boolean entity to track dimming direction for the Right button.
+      selector:
+        entity:
+          domain: input_boolean
+    helper_step_up:
+      name: Brightness step up
+      default: 10
+      selector:
+        number:
+          min: 5
+          max: 50
+          mode: slider
+          step: 5
+    helper_step_down:
+      name: Brightness step down
+      default: -10
+      selector:
+        number:
+          min: -50
+          max: -5
+          mode: slider
+          step: 5
+    helper_transition_dim:
+      name: Dimming transition time (seconds)
+      default: 0.5
+      selector:
+        number:
+          min: 0.0
+          max: 10.0
+          mode: slider
+          step: 0.5
+    helper_pause:
+      name: Pause between dimming steps (ms)
+      default: 500
+      selector:
+        number:
+          min: 100
+          max: 2000
+          mode: slider
+          step: 100
+mode: restart
+max_exceeded: silent
+triggers:
+- platform: mqtt
+  topic: !input remote_topic
+variables:
+  command: '{{ trigger.payload_json.action }}'
+actions:
+- choose:
+  # On/Off for Lights Up/Down
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "on" }}'
+    sequence:
+      - service: light.turn_on
+        target:
+          entity_id: !input lights_up_down
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "off" }}'
+    sequence:
+      - service: light.turn_off
+        target:
+          entity_id: !input lights_up_down
+
+  # Brightness Move Up/Down for Lights Up/Down
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "brightness_move_up" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - service: light.turn_on
+              data:
+                brightness_step_pct: !input helper_step_up
+                transition: !input helper_transition_dim
+              target:
+                entity_id: !input lights_up_down
+            - delay:
+                milliseconds: !input helper_pause
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "brightness_move_down" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - service: light.turn_on
+              data:
+                brightness_step_pct: !input helper_step_down
+                transition: !input helper_transition_dim
+              target:
+                entity_id: !input lights_up_down
+            - delay:
+                milliseconds: !input helper_pause
+
+  # Toggle for Left Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_click" }}'
+    sequence:
+      - service: light.toggle
+        target:
+          entity_id: !input light_left
+
+  # Dim/Brighten for Left Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_hold" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: '{{ is_state("{{ !input dimming_direction_left }}", "off") }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_up
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_left
+                - conditions:
+                    - condition: template
+                      value_template: '{{ is_state("{{ !input dimming_direction_left }}", "on") }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_down
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_left
+            - delay:
+                milliseconds: !input helper_pause
+
+  # Toggle for Right Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_click" }}'
+    sequence:
+      - service: light.toggle
+        target:
+          entity_id: !input light_right
+
+  # Dim/Brighten for Right Button
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_hold" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: '{{ is_state("{{ !input dimming_direction_right }}", "off") }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_up
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_right
+                - conditions:
+                    - condition: template
+                      value_template: '{{ is_state("{{ !input dimming_direction_right }}", "on") }}'
+                  sequence:
+                    - service: light.turn_on
+                      data:
+                        brightness_step: !input helper_step_down
+                        transition: !input helper_transition_dim
+                      target:
+                        entity_id: !input light_right
+            - delay:
+                milliseconds: !input helper_pause
+
+  # Switch Dimming Direction for Left Button on Release
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_release" }}'
+    sequence:
+      - service: input_boolean.toggle
+        target:
+          entity_id: !input dimming_direction_left
+
+  # Switch Dimming Direction for Right Button on Release
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_release" }}'
+    sequence:
+      - service: input_boolean.toggle
+        target:
+          entity_id: !input dimming_direction_right
