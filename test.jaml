@@ -1,5 +1,5 @@
 blueprint:
-  name: Z2M IKEA STYRBAR Remote with Configurable Dimming Direction V3
+  name: V3 Z2M IKEA STYRBAR Remote with Configurable Dimming Direction 
   description: IKEA Remote Control with Zigbee2MQTT for controlling individual lamps with Left/Right buttons and two light groups with Up/Down buttons.
   domain: automation
   input:
