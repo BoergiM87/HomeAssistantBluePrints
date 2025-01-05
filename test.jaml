@@ -1,5 +1,5 @@
 blueprint:
-  name: Z2M 4-Button Remote with Full Control
+  name: Z2M IKEA STYRBAR Remote with two Lights OnOff and Dimming Control
   description: IKEA Remote Control with 4 Buttons using Zigbee2MQTT, including dimming and on/off for two separate lights.
   domain: automation
   input:
