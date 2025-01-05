@@ -1,6 +1,6 @@
 blueprint:
-  name: Z2M 4-Button Remote for Multiple Lights
-  description: IKEA Remote Control with 4 Buttons using Zigbee2MQTT for controlling two separate lights.
+  name: Z2M 4-Button Remote with Full Control
+  description: IKEA Remote Control with 4 Buttons using Zigbee2MQTT, including on/off and dimming with configurable transitions.
   domain: automation
   input:
     remote_topic:
@@ -31,6 +31,15 @@ blueprint:
           max: 10.0
           mode: box
           step: 0.5
+    helper_pause:
+      name: Pause between dimming steps (ms)
+      default: 500
+      selector:
+        number:
+          min: 10
+          max: 2000
+          mode: box
+          step: 10
     helper_step_up:
       name: Brightness step up
       default: 5
@@ -58,24 +67,48 @@ actions:
 - choose:
   - conditions:
       - condition: template
-        value_template: '{{ command == "brightness_move_up" }}'
+        value_template: '{{ command == "on" }}'
     sequence:
       - service: light.turn_on
-        data:
-          brightness_step_pct: !input helper_step_up
-          transition: !input helper_transition_dim
         target:
           entity_id: !input light_up_down
   - conditions:
       - condition: template
-        value_template: '{{ command == "brightness_move_down" }}'
+        value_template: '{{ command == "off" }}'
     sequence:
-      - service: light.turn_on
-        data:
-          brightness_step_pct: !input helper_step_down
-          transition: !input helper_transition_dim
+      - service: light.turn_off
         target:
           entity_id: !input light_up_down
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "brightness_move_up" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - service: light.turn_on
+              data:
+                brightness_step_pct: !input helper_step_up
+                transition: !input helper_transition_dim
+              target:
+                entity_id: !input light_up_down
+            - delay:
+                milliseconds: !input helper_pause
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "brightness_move_down" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - service: light.turn_on
+              data:
+                brightness_step_pct: !input helper_step_down
+                transition: !input helper_transition_dim
+              target:
+                entity_id: !input light_up_down
+            - delay:
+                milliseconds: !input helper_pause
   - conditions:
       - condition: template
         value_template: '{{ command == "arrow_left_click" }}'
