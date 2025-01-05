@@ -2,11 +2,13 @@ blueprint:
   name: Z2M IKEA On Off and dimming Lights
   description: Blueprint for Ikea Remote Controls e1743 e1744 (On/Off and dim) for controlling lights
   domain: automation
-  source_url: https://gist.github.com/Cadsters/322ae7f35a84d135e3be3b0eb8a0d237
+  source_url: https://github.com/BoergiM87/HomeAssistantBluePrints/blob/main/test.jaml
   input:
     remote:
       name: Remote
       description: IKEA remote to use (e.g sensor.kitchen_remote_action)
+      default:
+        entity_id: none
       selector:
         entity:
           domain:
