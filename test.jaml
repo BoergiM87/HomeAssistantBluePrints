@@ -1,6 +1,6 @@
 blueprint:
-  name: Z2M IKEA STYRBAR Remote with two Lights OnOff and Dimming Control
-  description: IKEA Remote Control with 4 Buttons using Zigbee2MQTT, including dimming and on/off for two separate lights.
+  name: Z2M IKEA STYRBAR Remote with Groups and Toggle Dimming
+  description: IKEA Remote Control with Zigbee2MQTT for controlling two light groups with advanced dimming.
   domain: automation
   input:
     remote_topic:
@@ -8,16 +8,16 @@ blueprint:
       description: Enter the MQTT topic of your IKEA remote (e.g., "zigbee2mqtt/MB - SW - Schreibtisch").
       selector:
         text: {}
-    light_up_down:
-      name: Light for Up/Down
-      description: Light to control for brightness up and down actions.
+    lights_up_down:
+      name: Lights for Up/Down
+      description: Lights to control for brightness up, down, on, and off.
       selector:
         entity:
           domain: light
-          multiple: false
+          multiple: true
     light_left_right:
       name: Light for Left/Right
-      description: Light to control for brightness left and right actions.
+      description: Light to control for toggling and dimming.
       selector:
         entity:
           domain: light
@@ -60,30 +60,28 @@ blueprint:
           step: 10
 mode: restart
 max_exceeded: silent
-triggers:
-- platform: mqtt
-  topic: !input remote_topic
 variables:
   command: '{{ trigger.payload_json.action }}'
+  dimming_direction: '{{ states("input_boolean.dimming_direction") | default("off") }}'
 actions:
 - choose:
-  # On/Off for Light Up/Down
+  # On/Off for Lights Up/Down
   - conditions:
       - condition: template
         value_template: '{{ command == "on" }}'
     sequence:
       - service: light.turn_on
         target:
-          entity_id: !input light_up_down
+          entity_id: !input lights_up_down
   - conditions:
       - condition: template
         value_template: '{{ command == "off" }}'
     sequence:
       - service: light.turn_off
         target:
-          entity_id: !input light_up_down
+          entity_id: !input lights_up_down
 
-  # Brightness Move Up/Down for Light Up/Down
+  # Brightness Move Up/Down for Lights Up/Down
   - conditions:
       - condition: template
         value_template: '{{ command == "brightness_move_up" }}'
@@ -96,7 +94,7 @@ actions:
                 brightness_step_pct: !input helper_step_up
                 transition: !input helper_transition_dim
               target:
-                entity_id: !input light_up_down
+                entity_id: !input lights_up_down
             - delay:
                 milliseconds: !input helper_pause
   - conditions:
@@ -111,52 +109,48 @@ actions:
                 brightness_step_pct: !input helper_step_down
                 transition: !input helper_transition_dim
               target:
-                entity_id: !input light_up_down
+                entity_id: !input lights_up_down
             - delay:
                 milliseconds: !input helper_pause
 
-  # Left/Right Control for Light Left/Right
+  # Toggle and Advanced Dimming for Light Left/Right
   - conditions:
       - condition: template
-        value_template: '{{ command == "arrow_left_click" }}'
+        value_template: '{{ command == "arrow_left_click" or command == "arrow_right_click" }}'
     sequence:
-      - service: light.turn_on
+      - service: light.toggle
         target:
           entity_id: !input light_left_right
   - conditions:
       - condition: template
-        value_template: '{{ command == "arrow_right_click" }}'
+        value_template: '{{ command == "arrow_left_hold" or command == "arrow_right_hold" }}'
     sequence:
-      - service: light.turn_off
-        target:
-          entity_id: !input light_left_right
-  - conditions:
-      - condition: template
-        value_template: '{{ command == "arrow_left_hold" }}'
-    sequence:
-      - repeat:
-          count: 20
-          sequence:
-            - service: light.turn_on
-              data:
-                brightness_step_pct: !input helper_step_up
-                transition: !input helper_transition_dim
-              target:
-                entity_id: !input light_left_right
-            - delay:
-                milliseconds: !input helper_pause
-  - conditions:
-      - condition: template
-        value_template: '{{ command == "arrow_right_hold" }}'
-    sequence:
-      - repeat:
-          count: 20
-          sequence:
-            - service: light.turn_on
-              data:
-                brightness_step_pct: !input helper_step_down
-                transition: !input helper_transition_dim
-              target:
-                entity_id: !input light_left_right
-            - delay:
-                milliseconds: !input helper_pause
+      - choose:
+          # Dim the light if last action was brightening
+          - conditions:
+              - condition: template
+                value_template: '{{ dimming_direction == "brighten" }}'
+            sequence:
+              - service: light.turn_on
+                data:
+                  brightness_step_pct: !input helper_step_down
+                  transition: !input helper_transition_dim
+                target:
+                  entity_id: !input light_left_right
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.dimming_direction
+          # Brighten the light if last action was dimming
+          - conditions:
+              - condition: template
+                value_template: '{{ dimming_direction == "dim" or dimming_direction == "off" }}'
+            sequence:
+              - service: light.turn_on
+                data:
+                  brightness_step_pct: !input helper_step_up
+                  transition: !input helper_transition_dim
+                target:
+                  entity_id: !input light_left_right
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.dimming_direction
