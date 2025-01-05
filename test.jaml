@@ -1,6 +1,6 @@
 blueprint:
-  name: Z2M 4-Button Remote with Full Control (Enhanced Sliders)
-  description: IKEA Remote Control with 4 Buttons using Zigbee2MQTT, including dimming and on/off for two separate lights.
+  name: Z2M 4-Button Remote with Full Control (Final Fix)
+  description: IKEA Remote Control with 4 Buttons using Zigbee2MQTT, controlling two separate lights with dimming and on/off functionality.
   domain: automation
   input:
     remote_topic:
@@ -22,24 +22,6 @@ blueprint:
         entity:
           domain: light
           multiple: false
-    helper_step_up:
-      name: Brightness step up
-      description: Set the brightness increase step.
-      default: 5
-      selector:
-        number:
-          min: 1
-          max: 20
-          step: 1
-    helper_step_down:
-      name: Brightness step down
-      description: Set the brightness decrease step.
-      default: -5
-      selector:
-        number:
-          min: -20
-          max: -1
-          step: 1
     helper_transition_dim:
       name: Dimming transition time (seconds)
       description: Set the transition time for dimming actions.
@@ -58,6 +40,24 @@ blueprint:
           min: 10
           max: 2000
           step: 10
+    helper_step_up:
+      name: Brightness step up
+      description: Set the brightness increase step.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 20
+          step: 1
+    helper_step_down:
+      name: Brightness step down
+      description: Set the brightness decrease step.
+      default: -5
+      selector:
+        number:
+          min: -20
+          max: -1
+          step: 1
 mode: restart
 max_exceeded: silent
 triggers:
@@ -67,6 +67,7 @@ variables:
   command: '{{ trigger.payload_json.action }}'
 actions:
 - choose:
+  # On/Off for Light Up/Down
   - conditions:
       - condition: template
         value_template: '{{ command == "on" }}'
@@ -81,6 +82,8 @@ actions:
       - service: light.turn_off
         target:
           entity_id: !input light_up_down
+
+  # Brightness Move Up/Down for Light Up/Down
   - conditions:
       - condition: template
         value_template: '{{ command == "brightness_move_up" }}'
@@ -111,6 +114,8 @@ actions:
                 entity_id: !input light_up_down
             - delay:
                 milliseconds: !input helper_pause
+
+  # On/Off and Brightness for Light Left/Right
   - conditions:
       - condition: template
         value_template: '{{ command == "arrow_left_click" }}'
@@ -123,11 +128,50 @@ actions:
           entity_id: !input light_left_right
   - conditions:
       - condition: template
+        value_template: '{{ command == "arrow_left_hold" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - service: light.turn_on
+              data:
+                brightness_step_pct: !input helper_step_down
+                transition: !input helper_transition_dim
+              target:
+                entity_id: !input light_left_right
+            - delay:
+                milliseconds: !input helper_pause
+  - conditions:
+      - condition: template
         value_template: '{{ command == "arrow_right_click" }}'
     sequence:
       - service: light.turn_on
         data:
           brightness_step_pct: !input helper_step_up
+          transition: !input helper_transition_dim
+        target:
+          entity_id: !input light_left_right
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_right_hold" }}'
+    sequence:
+      - repeat:
+          count: 20
+          sequence:
+            - service: light.turn_on
+              data:
+                brightness_step_pct: !input helper_step_up
+                transition: !input helper_transition_dim
+              target:
+                entity_id: !input light_left_right
+            - delay:
+                milliseconds: !input helper_pause
+  - conditions:
+      - condition: template
+        value_template: '{{ command == "arrow_left_release" or command == "arrow_right_release" }}'
+    sequence:
+      - service: light.turn_off
+        data:
           transition: !input helper_transition_dim
         target:
           entity_id: !input light_left_right
